@@ -1,8 +1,9 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
-    database_url: str
-    weather_service_url: str = "https://127.0.0.1:8001"
+    weather_api_url: str
+    geocoding_user_agent: str
+    geocoding_api_url: str
 
     model_config = SettingsConfigDict(
         env_file=".env",

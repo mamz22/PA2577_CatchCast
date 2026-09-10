@@ -1,0 +1,226 @@
+<html>
+<head>
+    <link rel="stylesheet" href="style.css">
+    <meta charset="utf-8">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>CastCatch</h1>
+    </header>
+
+    <section class="layout">
+      <article class="card">
+        <h2>New catch</h2>
+
+        <form id="catch-form">
+          <div class="field">
+            <label for="species">Fish species</label>
+            <select id="species" name="species" required>
+              <option value="">Select a species</option>
+              <option>Perch</option>
+              <option>Pike</option>
+              <option>Zander</option>
+              <option>Trout</option>
+              <option>Rainbow trout</option>
+              <option>Roach</option>
+              <option>Other</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="length">Length in centimetres</label>
+            <input id="length" name="length" type="number" min="0.1" max="500" step="0.1" placeholder="Example: 87" required>
+          </div>
+
+          <button id="submit-button" type="submit">Use my location and register</button>
+          <p class="hint">Your browser will ask for permission to access your location.</p>
+          <p id="status" class="status" role="status" aria-live="polite"></p>
+        </form>
+
+        <div id="result" class="result" aria-live="polite"></div>
+      </article>
+
+      <article class="card">
+        <h2>Previous catches</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Species</th>
+                <th>Length</th>
+                <th>Location</th>
+                <th>Temperature</th>
+                <th>Wind</th>
+                <th>Humidity</th>
+                <th>Date and time</th>
+              </tr>
+            </thead>
+            <tbody id="catch-list">
+              <tr><td colspan="7" class="empty">Loading catches…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="attribution">
+          Location data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>.
+        </p>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    const API_BASE_URL = "http://127.0.0.1:8000";
+
+    const form = document.querySelector("#catch-form");
+    const submitButton = document.querySelector("#submit-button");
+    const statusElement = document.querySelector("#status");
+    const resultElement = document.querySelector("#result");
+    const catchList = document.querySelector("#catch-list");
+
+    function setStatus(message, type = "") {
+      statusElement.textContent = message;
+      statusElement.className = `status ${type}`.trim();
+    }
+
+    function getPosition() {
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error("Your browser does not support geolocation."));
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0,
+        });
+      });
+    }
+
+    function formatDate(value) {
+      return new Intl.DateTimeFormat("en-GB", {
+        dateStyle: "short",
+        timeStyle: "short",
+      }).format(new Date(value));
+    }
+
+    function addCell(row, value, className = "") {
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      if (className) cell.className = className;
+      row.appendChild(cell);
+    }
+
+    function formatLocation(item) {
+      if (item.location_name) return item.location_name;
+      return `${Number(item.latitude).toFixed(4)}, ${Number(item.longitude).toFixed(4)}`;
+    }
+
+    function renderCatches(catches) {
+      catchList.replaceChildren();
+
+      if (!catches.length) {
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+        cell.colSpan = 7;
+        cell.className = "empty";
+        cell.textContent = "No catches have been registered yet.";
+        row.appendChild(cell);
+        catchList.appendChild(row);
+        return;
+      }
+
+      for (const item of catches) {
+        const row = document.createElement("tr");
+        addCell(row, item.species);
+        addCell(row, `${item.length_cm} cm`);
+        addCell(row, formatLocation(item), "location-cell");
+        addCell(row, `${item.temperature_c} °C`);
+        addCell(row, `${item.wind_speed_mps} m/s`);
+        addCell(row, `${item.humidity_percent} %`);
+        addCell(row, formatDate(item.caught_at));
+        catchList.appendChild(row);
+      }
+    }
+
+    async function loadCatches() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/catches`);
+        if (!response.ok) throw new Error(`API responded with ${response.status}`);
+        renderCatches(await response.json());
+      } catch (error) {
+        catchList.replaceChildren();
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+        cell.colSpan = 7;
+        cell.className = "empty";
+        cell.textContent = `Could not load catches: ${error.message}`;
+        row.appendChild(cell);
+        catchList.appendChild(row);
+      }
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      submitButton.disabled = true;
+      resultElement.classList.remove("visible");
+      setStatus("Getting your location…");
+
+      try {
+        const position = await getPosition();
+        setStatus("Getting weather and saving your catch…");
+
+        const payload = {
+          species: document.querySelector("#species").value,
+          length_cm: Number(document.querySelector("#length").value),
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
+
+        const response = await fetch(`${API_BASE_URL}/api/catches`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          const detail = typeof data.detail === "string" ? data.detail : "Registration failed.";
+          throw new Error(detail);
+        }
+
+        resultElement.replaceChildren();
+        const title = document.createElement("strong");
+        title.textContent = "Catch registered!";
+        resultElement.appendChild(title);
+
+        for (const text of [
+          `${data.species}, ${data.length_cm} cm`,
+          formatLocation(data),
+          `${data.temperature_c} °C · ${data.wind_speed_mps} m/s · ${data.humidity_percent} % humidity`,
+          formatDate(data.caught_at),
+        ]) {
+          const paragraph = document.createElement("p");
+          paragraph.textContent = text;
+          resultElement.appendChild(paragraph);
+        }
+
+        resultElement.classList.add("visible");
+        setStatus("Saved.", "success");
+        form.reset();
+        await loadCatches();
+      } catch (error) {
+        let message = error.message;
+        if (error.code === 1) message = "Location access was denied. Allow location access and try again.";
+        if (error.code === 2) message = "Your location could not be determined.";
+        if (error.code === 3) message = "Getting your location took too long.";
+        setStatus(message, "error");
+      } finally {
+        submitButton.disabled = false;
+      }
+    });
+
+    loadCatches();
+  </script>
+</body>  
+</html>

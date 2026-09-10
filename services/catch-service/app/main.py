@@ -12,6 +12,8 @@ from app.database import Base, engine, get_db
 from app.models import Catch
 from app.settings import settings
 
+from fastapi.middleware.cors import CORSMiddleware
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
@@ -23,6 +25,19 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+        "http://localhost:8002",
+        "http://127.0.0.1:8002",
+    ],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+)
+
 # definition of each CatchCreate request object
 class CatchCreate(BaseModel):
     species: str = Field(min_length=1, max_length=100)
@@ -42,6 +57,7 @@ class CatchResponse(BaseModel):
     humidity_percent: int
     wind_speed_mps: float
     weather_observed_at: str
+    location_name: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -83,6 +99,9 @@ def create_catch(
         length_cm = catch.length_cm,
         latitude = catch.latitude,
         longitude = catch.longitude,
+        location_name=(
+            weather.get("location_name") or f"{catch.latitude:.5f}, {catch.longitude:.5f}"
+        ),
         caught_at = caught_at,
         temperature_c = weather["temperature_c"],
         humidity_percent = weather["humidity_percent"],
