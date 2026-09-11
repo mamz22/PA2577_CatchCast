@@ -116,7 +116,7 @@ def create_catch(
     except SQLAlchemyError as error:
         database.rollback()
         raise HTTPException(
-            statuscode=500,
+            status_code=500,
             detail="Could not save catch",
         ) from error
 
