@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catch-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: catch-service
+  template:
+    metadata:
+      labels:
+        app: catch-service
+    spec:
+      containers:
+        - name: catch-service
+          image: markomunoz/catch-service:v2
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: DATABASE_URL
+            - name: WEATHER_SERVICE_URL
+              value: http://weather-service:8000
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: catch-service
+spec:
+  type: ClusterIP
+  selector:
+    app: catch-service
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
