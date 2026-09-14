@@ -103,5 +103,5 @@ PostgreSQL uses `postgres:16-alpine` and requires no build.
 
 ## Software Architecture Diagram
 
-<img width="1845" height="1289" alt="image" src="https://github.com/user-attachments/assets/144d9c4c-dc97-4b47-9099-45d3e6c54f09" />
+<img width="663" height="453" alt="Architecture" src="https://github.com/user-attachments/assets/a201643f-29fd-48a0-85b8-e7aa17937a88" />
 
