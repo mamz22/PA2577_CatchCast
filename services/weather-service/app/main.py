@@ -69,7 +69,7 @@ async def get_current_weather(
         ),
         "wind_speed_unit": "ms",
     }
-    # Calling the Weather API expecting 200 OK otherwhise 502
+    # Calling the Weather API expecting 200 OK otherwise 502
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             weather_response = await client.get(
