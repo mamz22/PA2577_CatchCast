@@ -12,8 +12,6 @@ from app.database import Base, engine, get_db
 from app.models import Catch
 from app.settings import settings
 
-from fastapi.middleware.cors import CORSMiddleware
-
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
@@ -24,18 +22,6 @@ app = FastAPI(
     title="Catch Service",
     version="0.1.0",
     lifespan=lifespan,
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:8080",
-        "http://127.0.0.1:8080",
-        "http://localhost:8002",
-        "http://127.0.0.1:8002",
-    ],
-    allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type"],
 )
 
 # definition of each CatchCreate request object
